@@ -29,7 +29,7 @@ typedef struct urlinfo_t
 urlinfo_t *parse_url(char *url)
 {
   // copy the input URL so as not to mutate the original
-  char *hostname = strdup(url);
+  char *hostname;
   char *port;
   char *path;
 
@@ -46,13 +46,51 @@ urlinfo_t *parse_url(char *url)
     6. Overwrite the colon with a '\0' so that we are just left with the hostname.
   */
 
-  path = strchr(hostname, '/');
-  urlinfo->path = path + 1;
-  hostname[path - hostname] = '\0';
-  port = strchr(hostname, ':');
-  urlinfo->port = port + 1;
-  hostname[port - hostname] = '\0';
-  urlinfo->hostname = strdup(hostname);
+  // path = strchr(hostname, '/');
+  // urlinfo->path = path + 1;
+  // hostname[path - hostname] = '\0';
+  // port = strchr(hostname, ':');
+  // urlinfo->port = port + 1;
+  // hostname[port - hostname] = '\0';
+  // urlinfo->hostname = strdup(hostname);
+
+  if (strstr(url, "http://"))
+  {
+    hostname = strdup(url + 7);
+  }
+  else if (strstr(url, "https://"))
+  {
+    hostname = strdup(url + 8);
+  }
+  else
+  {
+    hostname = strdup(url);
+  }
+
+  if (strchr(hostname, '/'))
+  {
+    path = strchr(hostname, '/') + 1;
+    *(path - 1) = '\0';
+  }
+  else
+  {
+    path = "";
+  }
+
+  if (strchr(hostname, ':'))
+  {
+    port = strchr(hostname, ':') + 1;
+    *(port - 1) = '\0';
+  }
+  else
+  {
+    port = "80";
+  }
+
+  urlinfo->path = path;
+  urlinfo->port = port;
+  urlinfo->hostname = hostname;
+  printf("hostname: %s, port: %s, path: %s\n", urlinfo->hostname, urlinfo->port, urlinfo->path);
 
   return urlinfo;
 }
@@ -76,10 +114,15 @@ int send_request(int fd, char *hostname, char *port, char *path)
   int request_length = sprintf(request,
                                "GET /%s HTTP/1.1\n"
                                "Host: %s:%s\n"
-                               "Connection: close\n",
+                               "Connection: close\n\n",
                                path, hostname, port);
 
   rv = send(fd, request, request_length, 0);
+
+  if (rv < 0)
+  {
+    perror("send");
+  }
 
   return rv;
 }
@@ -113,8 +156,6 @@ int main(int argc, char *argv[])
   }
 
   free(urlinfo->hostname);
-  free(urlinfo->port);
-  free(urlinfo->path);
   free(urlinfo);
 
   close(sockfd);
